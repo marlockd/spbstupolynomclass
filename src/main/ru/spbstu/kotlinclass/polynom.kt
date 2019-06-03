@@ -1,4 +1,5 @@
-package kotlinTasks.polynom
+package ru.spbstu.kotlinclass
+
 import java.lang.Math.pow
 
 fun otl(po: Polynom) {
@@ -8,7 +9,6 @@ fun otl(po: Polynom) {
         println()
     }
 }
-
 
 /**
  * Поправки к общему стандарту
@@ -21,10 +21,15 @@ fun otl(po: Polynom) {
  * нуля в степени во время тех или иных действий, идёт автоматическая замена этого члена на единицу
  */
 
+//  В ходе проверок, выяснилось, что оригинальная функция pow выдет не точные ответы при степени равной нулю
+//  То есть, функции pow(2.0, 0.0) pow(-2.0, 0.0) вернут в качестве ответа единицу, т.е. просто 1.0
+//  Это нас не может устраивать, так как в нашем случае, -8^0 должен быть равен -1.0, а не 1.0, что в корне неверно
+
+fun powFixed(a: Double, b: Double): Double = if (a < 0) { pow(a, b) * -1.0 } else pow(a, b)
 
 
 fun convert(poly: String): Polynom {
-    if (!Regex("""([-+]?((\d+x\^\d+)|(\d+x)|(x\^\d+)|\d+|x))+""").matches(poly))
+    if (!Regex("""([-+]?((\d+x\^\d+)|(\d+x)|(\d+\^\d+)|(x\^\d+)|\d+|x))+""").matches(poly))
         throw IllegalArgumentException()
     val tempList = mutableListOf<PolyPart>()
     val list = Regex("""-""").replace(Regex("""\+""").
@@ -32,7 +37,7 @@ fun convert(poly: String): Polynom {
     list.forEach {
         if (it.matches(Regex("""-?\d+x\^\d+"""))) {
             val parts = it.split("x^").map { it.toDouble() }
-            if (parts.last() == 0.0) tempList.add(PolyPart(1.0, 0))
+            if (parts.last() == 0.0) tempList.add(PolyPart(parts.first(), 0))
             else tempList.add(PolyPart(parts.first(), parts.last().toInt()))
         }
         if (it.matches(Regex("""-?x\^\d+"""))) {
@@ -43,16 +48,18 @@ fun convert(poly: String): Polynom {
         }
         if (it.matches(Regex("""-?\d+\^\d+"""))) {
             val parts = it.split("^")
-            if (parts.last().toInt() == 0) tempList.add(PolyPart(1.0, 0))
-            else tempList.add(PolyPart(pow(parts.first().toDouble(), parts.last().toDouble()), parts.last().toInt()))
+            if (parts.last().toInt() == 0) tempList.add(PolyPart(powFixed(parts.first().toDouble(), 0.0), 0))
+            else tempList.add(PolyPart(powFixed(parts.first().toDouble(), parts.last().toDouble()), 0))
         }
         if (it.matches(Regex("""-?\d+x"""))) tempList.add(PolyPart(it.replace("x", "").toDouble(), 1))
         if (it.matches(Regex("""-?\d+"""))) tempList.add(PolyPart(it.toDouble(), 0))
         if (it == "x") tempList.add(PolyPart(1.0, 1))
         if (it == "-x") tempList.add(PolyPart(-1.0, 1))
+        println("list.it: $it")
     }
     return Polynom(tempList).shorten()
 }
+
 
 /**
 // отладка полинома
@@ -74,7 +81,7 @@ fun out(po: Polynom) {
 }
 */
 
-data class Polynom(val elements: MutableList<PolyPart>) {
+data class Polynom(val elements: List<PolyPart>) {
 
     // сравнение полиномов между собой
     fun isEqual(other: Polynom): Boolean = elements == other.elements
@@ -85,12 +92,31 @@ data class Polynom(val elements: MutableList<PolyPart>) {
     // вычисление при определенном целом значении X
     fun calcX(x: Int): Double {
         val sumList = mutableListOf<Double>()
-        elements.forEach {
-            if (it.pow != 0) sumList.add(it.coef * pow(x.toDouble(), it.pow.toDouble()))
-            else sumList.add(it.coef * x)
+        val list = if (x < 0) Polynom(elements).changeSign().elements else elements
+        list.forEach {
+            if (it.pow != 0) sumList.add(it.coef * powFixed(x.toDouble(), it.pow.toDouble()))
+            else sumList.add(it.coef)
         }
         return sumList.sum()
     }
+
+    /**
+     * Проверку на (it.pow != 0) приходится оставлять, так как нулевое значение степени
+     * теперь используется не как значение степени, а как указатель на отсутствие
+     * в рассматриваемом члене неизвестного элемента, или же просто икса.
+     * Операции со степенью 0 в привычном смысле происходят заранее в функции convert,
+     * преобразуя разные исключения в формат класса.
+     * Пример: 4x^0 --> 1  ;  8^0 --> 1
+     * А случай, когда член состоит из числа и степени, без икса, по типу как 5^8
+     * то эти случаи обрабатываюся функцией .shorten(), преобразуя их в нужный нам вид.
+     * А так как функция .convert() в конце вызывает так же функцию .shorten(),
+     * то исключений уже попросту не остается, позволяя работать по нашему новому формату
+     * Пример: сonvert("5^2 - 0x^3 + 6x^0 - 8^0 + 9^2") выведет "111", не прибегая к .calcX()
+     * упрощая все дальнейшие действия над членами, после которых, в течении всего кода
+     * допущение возникновения неформатных ситуаций попросту невозможно, например
+     * таких как число без икса в степени (4^12), член с иксом со степенью 0 (3x^0) и др.
+     */
+
 
     // упрощение полинома
     fun shorten(): Polynom {
@@ -125,13 +151,13 @@ data class Polynom(val elements: MutableList<PolyPart>) {
 
     // умножение
     fun multiply(other: Polynom): Polynom {
-        val subParts = mutableListOf<Polynom>()
+        val subParts = mutableListOf<MutableList<PolyPart>>()
         for (i in 0 until elements.size) {
-            subParts.add(Polynom(mutableListOf()))
-            other.elements.forEach { its -> subParts[i].elements.add(elements[i].multiply(its)) }
+            subParts.add(mutableListOf())
+            other.elements.forEach { its -> subParts[i].add(elements[i].multiply(its)) }
         }
-        var res = subParts.first()
-        for (j in 1 until subParts.size) { res = res.addition(subParts[j]) }
+        var res = subParts.map { Polynom(it) }.first()
+        for (j in 1 until subParts.size) { res = res.addition(Polynom(subParts[j])) }
         return res.shorten()
     }
 
@@ -170,13 +196,7 @@ data class Polynom(val elements: MutableList<PolyPart>) {
 
 data class PolyPart(var coef: Double, val pow: Int) {
 
-    fun multiply(otherPart: PolyPart): PolyPart {
-        if ((pow != 0) && (otherPart.pow != 0)) return PolyPart(coef * otherPart.coef, pow + otherPart.pow)
-        if ((pow != 0) && (otherPart.pow == 0)) return PolyPart(coef * otherPart.coef, pow)
-        if ((pow == 0) && (otherPart.pow != 0)) return PolyPart(coef * otherPart.coef, otherPart.pow)
-        if ((pow == 0) && (otherPart.pow == 0)) return PolyPart(coef * otherPart.coef,0)
-        throw IllegalArgumentException()
-    }
+    fun multiply(otherPart: PolyPart): PolyPart = PolyPart(coef * otherPart.coef, pow + otherPart.pow)
 
     fun divide(otherPart: PolyPart): PolyPart {
         if (pow != 0 && otherPart.pow != 0 && (pow >= otherPart.pow))

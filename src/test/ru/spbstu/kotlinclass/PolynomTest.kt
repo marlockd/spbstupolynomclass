@@ -1,41 +1,44 @@
-package kotlinTasks.polynom
+package ru.spbstu.kotlinclass
 
 import org.junit.Test
-
 import org.junit.Assert.*
 
 class PolynomTest {
 
-    val poly1 = convert("7x^4+3x^3-6x^2+x-8")
-    val poly2 = convert("172x^4+34x-6x^2+x^4-x-4-8+2")
-    val poly3 = convert("2x^3+x^4-2x^2-x")
-    val poly4 = convert("4x^6+2x^7-4x^6-2x^4")
-    val poly5 = convert("10x^5+3x^4-12x^3+25x^2-2x+5")
-    val poly6 = convert("5x^2-x+2")
-    val poly7 = convert("2x^7+x^8-2x^6-x^5")
-    val poly8 = convert("x^8+4x^7+0x^6-9x^5+2x^4+2x^3")
+    private val poly1 = convert("7x^4+3x^3-6x^2+x-8")
+    private val poly2 = convert("172x^4+34x-6x^2+x^4-x-4-8+2")
+    private val poly3 = convert("2x^3+x^4-2x^2-x")
+    private val poly4 = convert("4x^6+2x^7-4x^6-2x^4")
+    private val poly5 = convert("10x^5+3x^4-12x^3+25x^2-2x+5")
+    private val poly6 = convert("5x^2-x+2")
+    private val poly7 = convert("2x^7+x^8-2x^6-x^5")
+    private val poly8 = convert("x^8+4x^7+0x^6-9x^5+2x^4+2x^3")
 
     @Test
     fun convert() {
-        assertEquals(Polynom(mutableListOf(
+        assertEquals(Polynom(emptyList()), convert("-0x^3"))
+        assertEquals(Polynom(listOf(PolyPart(111.0, 0))),
+                convert("5^2-0x^3+6x^0-8^0+9^2"))
+        assertEquals(Polynom(listOf(
                 PolyPart(7.0, 4),
                 PolyPart(3.0, 3),
                 PolyPart(-6.0, 2),
                 PolyPart(1.0, 1),
                 PolyPart(-8.0, 0)
         )).shorten(), convert("7x^4+3x^3-6x^2+x-8"))
-        assertEquals(Polynom(mutableListOf(
+        assertEquals(Polynom(listOf(
                 PolyPart(5.0, 2),
                 PolyPart(-1.0, 1),
                 PolyPart(2.0, 0)
         )).shorten(), convert("5x^2-x+2"))
-        assertEquals(Polynom(mutableListOf(
+        assertEquals(Polynom(listOf(
                 PolyPart(2.0, 7),
                 PolyPart(1.0, 8),
                 PolyPart(-2.0, 6),
                 PolyPart(-1.0, 5)
         )).shorten(), convert("2x^7+x^8-2x^6-x^5"))
-        assertEquals(Polynom(mutableListOf(PolyPart(2.0, 0))), convert("2"))
+        assertEquals(Polynom(listOf(PolyPart(2.0, 0))), convert("2"))
+
     }
 
 
@@ -57,11 +60,17 @@ class PolynomTest {
 
     @Test
     fun calcX() {
-        assertEquals(98.0, poly1.calcX(2), 1e-5)
-        assertEquals(14028.0, poly2.calcX(3), 1e-5)
+        // Были ошибки в написании результатов вычислений, но уже исправлены
+        // полной проверкой через wolframAlpha, а так же добавлены новые условия
+        assertEquals(106.0, poly1.calcX(2), 1e-5)
+        assertEquals(14048.0, poly2.calcX(3), 1e-5)
         assertEquals(2982.0, poly3.calcX(7), 1e-5)
         assertEquals(224.0, poly4.calcX(2), 1e-5)
-        assertEquals(0.0, poly5.calcX(0), 1e-5)
+        assertEquals(5.0, poly5.calcX(0), 1e-5)
+        assertEquals(480168.0, convert("4x^10-4x^7+2x^11-4x^8-4x^9+4x^6+2x^5").calcX(3), 1e-5)
+        assertEquals(-2.0, convert("2x^3+x^4-2x^2-x").calcX(-1), 1e-5)
+        assertEquals(8.0, convert("4x^10-4x^7+2x^11-4x^8-4x^9+4x^6+2x^5").calcX(-1), 1e-5)
+        assertEquals(1728.0, convert("4x^10-4x^7+2x^11-4x^8-4x^9+4x^6+2x^5").calcX(-2), 1e-5)
     }
 
     @Test
@@ -92,7 +101,7 @@ class PolynomTest {
     fun div() {
         assertEquals(convert("2x^3+1x^2-3x+4"), poly5.div(poly6))
         assertEquals(convert("4x^2-20x+102"), convert("4x^3+2x-11").div(convert("x+5")))
-        assertEquals(Polynom(mutableListOf()),
+        assertEquals(Polynom(emptyList()),
                 convert("7x^3+9x^2-5x+9").div(convert("5x^7+10x^6-17x^2+14x-7")))
     }
 
